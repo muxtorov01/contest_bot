@@ -37,7 +37,7 @@ async def top50(callback: CallbackQuery, session: AsyncSession) -> None:
         return
 
     rating_service = RatingService(session)
-    top_list = await rating_service.get_top_50(contest.id)
+    top_list = await rating_service.get_top_50(contest.id, for_admin=True)
 
     if not top_list:
         text = "🏆 <b>TOP 50</b>\n\nHozircha hech kim ball to'plamagan."
