@@ -19,7 +19,14 @@ class Admin(Base):
     __tablename__ = "admins"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
-    role: Mapped[AdminRole] = mapped_column(Enum(AdminRole, name="admin_role"), default=AdminRole.ADMIN)
+    role: Mapped[AdminRole] = mapped_column(
+        Enum(
+            AdminRole,
+            name="admin_role",
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+        ),
+        default=AdminRole.ADMIN,
+    )
     added_by: Mapped[int] = mapped_column(BigInteger)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
