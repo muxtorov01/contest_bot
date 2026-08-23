@@ -2,7 +2,7 @@
 nixPkgs = ["python312", "python312Packages.pip", "postgresql"]
 
 [phases.install]
-cmds = ["pip install --no-cache-dir -r requirements.txt"]
+cmds = ["pip install --no-cache-dir --break-system-packages -r requirements.txt"]
 
 [start]
 cmd = "alembic upgrade head && python -m app.main"
