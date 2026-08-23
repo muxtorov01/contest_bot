@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from aiogram import Router, Bot
+from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,12 +17,21 @@ router = Router(name="user_captcha")
 
 
 @router.callback_query(lambda c: c.data and c.data.startswith("captcha:"))
-async def process_captcha(callback: CallbackQuery, session: AsyncSession, bot: Bot) -> None:
-    _, chosen, correct = callback.data.split(":")
+async def process_captcha(callback: CallbackQuery, session: AsyncSession, bot: Bot, state: FSMContext) -> None:
+    _, chosen = callback.data.split(":")
+    data = await state.get_data()
+    correct = data.get("captcha_answer")
+
+    if correct is None:
+        # State topilmadi (masalan eski/tugagan tugma) - qayta /start ni so'raymiz.
+        await callback.answer("⏳ Captcha muddati tugagan. Iltimos, /start ni qayta bosing.", show_alert=True)
+        return
+
     user_repo = UserRepository(session)
     tg_user = callback.from_user
 
-    if chosen == correct:
+    if int(chosen) == int(correct):
+        await state.update_data(captcha_answer=None)
         await user_repo.set_captcha_verified(tg_user.id, True)
         await callback.message.edit_text("✅ Tasdiqlandi! Endi majburiy shartlarni tekshiramiz...")
 
@@ -60,6 +70,7 @@ async def process_captcha(callback: CallbackQuery, session: AsyncSession, bot: B
             tg_user.id, settings.CAPTCHA_MAX_ATTEMPTS, settings.CAPTCHA_BLOCK_SECONDS
         )
         if fail_count == 0:
+            await state.update_data(captcha_answer=None)
             await callback.message.edit_text(
                 f"❌ Noto'g'ri javob!\n\n⛔️ Siz {settings.CAPTCHA_BLOCK_SECONDS} soniyaga bloklandingiz. "
                 "Keyin /start ni qayta bosing."
