@@ -16,14 +16,31 @@ router = Router(name="user_menu")
 
 
 @router.message(F.text == "🔗 Referral havolam")
-async def my_referral_link(message: Message) -> None:
+async def my_referral_link(message: Message, session: AsyncSession) -> None:
     user_id = message.from_user.id
     link = f"https://t.me/{settings.BOT_USERNAME}?start={user_id}"
-    await message.answer(
-        f"🔗 <b>Sizning shaxsiy referral havolangiz:</b>\n\n<code>{link}</code>\n\n"
+
+    contest_service = ContestService(session)
+    contest = await contest_service.get_current_for_user()
+
+    lines = [
+        "🔗 <b>Sizning shaxsiy referral havolangiz:</b>",
+        "",
+        f"<code>{link}</code>",
+        "",
+    ]
+    if contest:
+        lines.append(f"🏁 Joriy konkurs: <b>{contest.title}</b>")
+        lines.append(f"{contest.description}")
+        lines.append("")
+    lines.append(
         "Do'stlaringizni shu havola orqali taklif qiling. Ular captcha va kanallarga "
-        "obuna bo'lgandan so'ng, sizga ball qo'shiladi!",
-        reply_markup=referral_link_kb(user_id),
+        "obuna bo'lgandan so'ng, sizga ball qo'shiladi!"
+    )
+
+    await message.answer(
+        "\n".join(lines),
+        reply_markup=referral_link_kb(user_id, contest),
     )
 
 
