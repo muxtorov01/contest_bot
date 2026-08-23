@@ -29,7 +29,12 @@ class Referral(Base):
     invited_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"))
 
     status: Mapped[ReferralStatus] = mapped_column(
-        Enum(ReferralStatus, name="referral_status"), default=ReferralStatus.PENDING
+        Enum(
+            ReferralStatus,
+            name="referral_status",
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+        ),
+        default=ReferralStatus.PENDING,
     )
 
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -38,3 +43,4 @@ class Referral(Base):
 
     def __repr__(self) -> str:
         return f"<Referral {self.referrer_id}->{self.invited_id} [{self.status}]>"
+        
