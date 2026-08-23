@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import asyncio
+import subprocess
+import sys
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
@@ -29,6 +31,22 @@ from app.handlers.superadmin import channels as sa_channels
 from app.handlers.superadmin import admins as sa_admins
 from app.handlers.superadmin import broadcast as sa_broadcast
 from app.handlers.superadmin import backup as sa_backup
+
+
+def run_migrations() -> None:
+    """Alembic migratsiyalarini bot ishga tushishidan oldin, runtime'da bajaradi.
+    MUHIM: bu build vaqtida emas, konteyner haqiqatan ishga tushganda chaqiriladi —
+    shu payt Railway'ning ichki tarmog'i (masalan postgres.railway.internal)
+    allaqachon mavjud bo'ladi."""
+    logger.info("Migratsiyalar ishga tushirilmoqda...")
+    result = subprocess.run(
+        [sys.executable, "-m", "alembic", "upgrade", "head"],
+        check=False,
+    )
+    if result.returncode != 0:
+        logger.error("Migratsiya bajarilmadi! Bot to'xtatilmoqda.")
+        raise SystemExit(result.returncode)
+    logger.info("Migratsiyalar muvaffaqiyatli yakunlandi.")
 
 
 def create_dispatcher() -> Dispatcher:
@@ -75,6 +93,8 @@ async def on_startup(bot: Bot) -> None:
 
 
 def main() -> None:
+    run_migrations()
+
     bot = Bot(
         token=settings.BOT_TOKEN,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
