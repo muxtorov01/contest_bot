@@ -1,6 +1,8 @@
 """Top ro'yxat va reyting bilan bog'liq logika."""
 from __future__ import annotations
 
+from html import escape
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.referral_repo import ReferralRepository
@@ -58,5 +60,5 @@ class RatingService:
         if not user:
             return f"ID{fallback_id}"
         if user.username:
-            return f"@{user.username}"
-        return user.full_name or f"ID{fallback_id}"
+            return escape(f"@{user.username}")
+        return escape(user.full_name) if user.full_name else f"ID{fallback_id}"
