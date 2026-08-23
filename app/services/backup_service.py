@@ -17,8 +17,13 @@ class BackupService:
     def __init__(self, bot: Bot) -> None:
         self.bot = bot
 
-    async def create_and_send_backup(self) -> bool:
-        """pg_dump orqali backup yaratadi va sozlangan yopiq kanalga yuboradi."""
+    async def create_and_send_backup(self, chat_id: int | None = None) -> bool:
+        """pg_dump orqali backup yaratadi va sozlangan yopiq kanalga (va/yoki berilgan chat_id'ga) yuboradi.
+
+        MUHIM (tuzatilgan xato): avval BACKUP_CHANNEL_ID sozlanmagan bo'lsa,
+        funksiya hech kimga hech narsa yubormay turib ham True (muvaffaqiyat) qaytarardi.
+        Endi kamida bitta manzilga (kanal yoki chat_id) yuborilmasa, False qaytaradi
+        va aniq xato logga yoziladi."""
         try:
             dump_path = await self._create_dump()
         except Exception as e:
@@ -30,16 +35,30 @@ class BackupService:
                 data = f.read()
             filename = os.path.basename(dump_path)
             caption = (
-                f"🗄 Avtomatik backup\n"
+                f"🗄 Backup\n"
                 f"📅 {dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
             )
+
+            targets: list[int] = []
             if settings.BACKUP_CHANNEL_ID:
+                targets.append(settings.BACKUP_CHANNEL_ID)
+            if chat_id and chat_id not in targets:
+                targets.append(chat_id)
+
+            if not targets:
+                logger.error(
+                    "Backup yuborilmadi: BACKUP_CHANNEL_ID sozlanmagan va chat_id berilmagan."
+                )
+                return False
+
+            for target in targets:
                 await self.bot.send_document(
-                    chat_id=settings.BACKUP_CHANNEL_ID,
+                    chat_id=target,
                     document=BufferedInputFile(data, filename=filename),
                     caption=caption,
                 )
-            logger.info("Backup muvaffaqiyatli yuborildi")
+
+            logger.info(f"Backup muvaffaqiyatli yuborildi: {targets}")
             return True
         except Exception as e:
             logger.error(f"Backupni yuborishda xato: {e}")
