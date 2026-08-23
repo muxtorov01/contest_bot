@@ -1,6 +1,8 @@
 """User uchun klaviaturalar."""
 from __future__ import annotations
 
+from urllib.parse import quote
+
 from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -21,10 +23,20 @@ def main_menu_kb() -> ReplyKeyboardMarkup:
     )
 
 
-def referral_link_kb(user_id: int) -> InlineKeyboardMarkup:
+def referral_link_kb(user_id: int, contest=None) -> InlineKeyboardMarkup:
+    """Referral havolasini ulashish tugmasi.
+    Agar joriy konkurs berilsa, ulashiladigan matn konkurs nomi va tavsifi bilan boradi,
+    shunda havolani ochgan odam qaysi konkurs bo'layotganini darhol ko'radi."""
     link = f"https://t.me/{settings.BOT_USERNAME}?start={user_id}"
-    share_text = "Konkursga qo'shiling va sovg'a yutib oling! 🎁"
-    share_url = f"https://t.me/share/url?url={link}&text={share_text}"
+
+    if contest:
+        share_text = (
+            f"🎁 {contest.title} nomli konkursga qo'shiling!\n\n{contest.description}"
+        )
+    else:
+        share_text = "Konkursga qo'shiling va sovg'a yutib oling! 🎁"
+
+    share_url = f"https://t.me/share/url?url={quote(link, safe='')}&text={quote(share_text, safe='')}"
     return InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text="📤 Ulashish", url=share_url)]]
     )
