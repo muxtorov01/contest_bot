@@ -1,8 +1,11 @@
 """/start komandasi: ro'yxatdan o'tkazish, referral ro'yxatga olish, captcha ko'rsatish."""
 from __future__ import annotations
 
+from html import escape
+
 from aiogram import Router, Bot, F
 from aiogram.filters import CommandStart, CommandObject
+from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,7 +23,9 @@ router = Router(name="user_start")
 
 @router.message(CommandStart(deep_link=True))
 @router.message(CommandStart())
-async def cmd_start(message: Message, command: CommandObject, session: AsyncSession, bot: Bot) -> None:
+async def cmd_start(
+    message: Message, command: CommandObject, session: AsyncSession, bot: Bot, state: FSMContext
+) -> None:
     user_repo = UserRepository(session)
     tg_user = message.from_user
 
@@ -52,8 +57,11 @@ async def cmd_start(message: Message, command: CommandObject, session: AsyncSess
 
     if not user.is_captcha_verified:
         question, correct, kb = generate_captcha()
+        # To'g'ri javob FAQAT serverda (FSM state) saqlanadi, callback_data'da emas.
+        await state.update_data(captcha_answer=correct)
+        safe_name = escape(tg_user.full_name or "")
         await message.answer(
-            f"👋 Assalomu alaykum, {tg_user.full_name}!\n\n{question}",
+            f"👋 Assalomu alaykum, {safe_name}!\n\n{question}",
             reply_markup=kb,
         )
         return
