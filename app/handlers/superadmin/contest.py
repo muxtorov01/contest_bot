@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from aiogram import Router
+from aiogram import Bot, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
@@ -16,6 +16,7 @@ from app.keyboards.superadmin_kb import (
     back_to_sa_kb,
 )
 from app.services.contest_service import ContestAlreadyExistsError, ContestService
+from app.services.notification_service import ContestNotificationService
 from app.states.contest_states import CreateContestStates, RescheduleContestStates
 from app.utils.text import contest_status_uz, format_dt
 
@@ -134,7 +135,7 @@ async def confirm_create(callback: CallbackQuery, state: FSMContext, session: As
 # ---------- Boshlash / Tugatish ----------
 
 @router.callback_query(lambda c: c.data == "sa:start_now")
-async def start_now(callback: CallbackQuery, session: AsyncSession) -> None:
+async def start_now(callback: CallbackQuery, session: AsyncSession, bot: Bot) -> None:
     from app.repositories.contest_repo import ContestRepository
 
     contest_repo = ContestRepository(session)
@@ -147,13 +148,21 @@ async def start_now(callback: CallbackQuery, session: AsyncSession) -> None:
     contest_service = ContestService(session)
     await contest_service.start_now(contest.id)
     await callback.message.edit_text(
-        f"▶️ Konkurs boshlandi: <b>{contest.title}</b>", reply_markup=superadmin_panel_kb()
+        f"▶️ Konkurs boshlandi: <b>{contest.title}</b>\n\n⏳ Foydalanuvchilarga xabar yuborilmoqda...",
+        reply_markup=superadmin_panel_kb(),
     )
     await callback.answer()
 
+    # Botdagi HAMMAGA konkurs boshlanganligi haqida xabar yuboriladi.
+    notification_service = ContestNotificationService(session, bot)
+    success, failed = await notification_service.notify_contest_started(contest)
+    await callback.message.answer(
+        f"📣 Konkurs boshlanishi haqida xabar yuborildi.\n📤 Yuborildi: {success}\n❌ Xato: {failed}"
+    )
+
 
 @router.callback_query(lambda c: c.data == "sa:stop_now")
-async def stop_now(callback: CallbackQuery, session: AsyncSession) -> None:
+async def stop_now(callback: CallbackQuery, session: AsyncSession, bot: Bot) -> None:
     contest_service = ContestService(session)
     contest = await contest_service.get_active()
 
@@ -163,9 +172,18 @@ async def stop_now(callback: CallbackQuery, session: AsyncSession) -> None:
 
     await contest_service.stop_now(contest.id)
     await callback.message.edit_text(
-        f"⏹ Konkurs to'xtatildi: <b>{contest.title}</b>", reply_markup=superadmin_panel_kb()
+        f"⏹ Konkurs to'xtatildi: <b>{contest.title}</b>\n\n⏳ Ishtirokchilarga natijalar yuborilmoqda...",
+        reply_markup=superadmin_panel_kb(),
     )
     await callback.answer()
+
+    # Konkurs tugaganligi va TOP 20 natijasi faqat ishtirokchilarga yuboriladi.
+    notification_service = ContestNotificationService(session, bot)
+    success, failed = await notification_service.notify_contest_ended(contest)
+    await callback.message.answer(
+        f"📣 Konkurs yakuni haqida ishtirokchilarga xabar yuborildi.\n"
+        f"📤 Yuborildi: {success}\n❌ Xato: {failed}"
+    )
 
 
 # ---------- Vaqtni o'zgartirish ----------
