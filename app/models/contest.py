@@ -28,7 +28,12 @@ class Contest(Base):
     end_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
 
     status: Mapped[ContestStatus] = mapped_column(
-        Enum(ContestStatus, name="contest_status"), default=ContestStatus.SCHEDULED
+        Enum(
+            ContestStatus,
+            name="contest_status",
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+        ),
+        default=ContestStatus.SCHEDULED,
     )
 
     created_by: Mapped[int] = mapped_column(BigInteger)
