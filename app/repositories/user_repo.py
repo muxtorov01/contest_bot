@@ -76,3 +76,11 @@ class UserRepository:
     async def all_active_ids(self) -> list[int]:
         result = await self.session.execute(select(User.id).where(User.is_blocked.is_(False)))
         return [row[0] for row in result.all()]
+
+    async def filter_active_ids(self, user_ids: list[int]) -> list[int]:
+        """Berilgan ID lar orasidan bloklanmaganlarini qaytaradi (maqsadli broadcast uchun)."""
+        if not user_ids:
+            return []
+        stmt = select(User.id).where(User.id.in_(user_ids), User.is_blocked.is_(False))
+        result = await self.session.execute(stmt)
+        return [row[0] for row in result.all()]
