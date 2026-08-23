@@ -24,6 +24,13 @@ class BroadcastService:
         """Barcha faol (bloklanmagan) foydalanuvchilarga xabar yuboradi.
         Qaytaradi: (muvaffaqiyatli, muvaffaqiyatsiz)."""
         user_ids = await self.user_repo.all_active_ids()
+        return await self.broadcast_to_ids(user_ids, text)
+
+    async def broadcast_to_ids(self, user_ids: list[int], text: str) -> tuple[int, int]:
+        """Berilgan ID lar ro'yxatidagi (masalan, konkurs ishtirokchilari)
+        bloklanmagan foydalanuvchilarga xabar yuboradi.
+        Qaytaradi: (muvaffaqiyatli, muvaffaqiyatsiz)."""
+        user_ids = await self.user_repo.filter_active_ids(user_ids)
         success, failed = 0, 0
 
         for i in range(0, len(user_ids), BROADCAST_CHUNK_SIZE):
