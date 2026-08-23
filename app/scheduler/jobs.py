@@ -1,7 +1,8 @@
 """APScheduler orqali background vazifalar.
 
-Har 1 soatda:
-    - konkurslarni avtomatik start/end qilish
+Har 1 daqiqada:
+    - konkurslarni avtomatik start/end qilish va tegishli xabarnomalarni yuborish
+Har N soatda:
     - obunani qayta tekshirish, bekor referrallarni ayirish
 Har 24 soatda:
     - PostgreSQL backup yaratish va Telegram kanaliga yuborish
@@ -16,19 +17,28 @@ from app.config import settings
 from app.database import get_session
 from app.services.backup_service import BackupService
 from app.services.contest_service import ContestService
+from app.services.notification_service import ContestNotificationService
 from app.services.referral_service import ReferralService
 from app.utils.logger import logger
 
 
-async def job_contest_auto_transition() -> None:
-    """scheduled -> active, active -> ended o'tishlarni bajaradi."""
+async def job_contest_auto_transition(bot: Bot) -> None:
+    """scheduled -> active, active -> ended o'tishlarni bajaradi va tegishli xabarnomalarni yuboradi."""
     async with get_session() as session:
         contest_service = ContestService(session)
         started, ended = await contest_service.auto_transition()
-        if started:
-            logger.info(f"Avtomatik boshlangan konkurslar: {[c.title for c in started]}")
-        if ended:
-            logger.info(f"Avtomatik tugagan konkurslar: {[c.title for c in ended]}")
+
+        notification_service = ContestNotificationService(session, bot)
+
+        for contest in started:
+            logger.info(f"Konkurs avtomatik boshlandi: {contest.title}")
+            success, failed = await notification_service.notify_contest_started(contest)
+            logger.info(f"Avtomatik start xabari: id={contest.id} success={success} failed={failed}")
+
+        for contest in ended:
+            logger.info(f"Konkurs avtomatik tugadi: {contest.title}")
+            success, failed = await notification_service.notify_contest_ended(contest)
+            logger.info(f"Avtomatik tugash xabari: id={contest.id} success={success} failed={failed}")
 
 
 async def job_recheck_subscriptions(bot: Bot) -> None:
@@ -56,6 +66,7 @@ def setup_scheduler(bot: Bot) -> AsyncIOScheduler:
     scheduler.add_job(
         job_contest_auto_transition,
         trigger=IntervalTrigger(minutes=1),
+        args=[bot],
         id="contest_auto_transition",
         replace_existing=True,
     )
