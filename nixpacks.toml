@@ -5,4 +5,4 @@ nixPkgs = ["python312", "python312Packages.pip", "postgresql"]
 cmds = ["pip install --no-cache-dir --break-system-packages -r requirements.txt"]
 
 [start]
-cmd = "alembic upgrade head && python -m app.main"
+cmd = "python -m alembic upgrade head && python -m app.main"
