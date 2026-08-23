@@ -1,6 +1,8 @@
 """Admin: user qidirish va profilini ochish."""
 from __future__ import annotations
 
+from html import escape
+
 from aiogram import Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
@@ -47,11 +49,13 @@ async def process_search(message: Message, state: FSMContext, session: AsyncSess
     referral_service = ReferralService(session, bot)
 
     for user in results:
+        safe_username = escape(user.username) if user.username else None
+        safe_full_name = escape(user.full_name) if user.full_name else None
         text_lines = [
             f"👤 <b>Profil</b>",
             f"ID: <code>{user.id}</code>",
-            f"Username: @{user.username}" if user.username else "Username: —",
-            f"F.I.O: {user.full_name or '—'}",
+            f"Username: @{safe_username}" if safe_username else "Username: —",
+            f"F.I.O: {safe_full_name or '—'}",
             f"Captcha tasdiqlangan: {'✅' if user.is_captcha_verified else '❌'}",
             f"Bloklangan: {'✅' if user.is_blocked else '❌'}",
             f"Ro'yxatdan o'tgan: {format_dt(user.created_at)}",
