@@ -17,17 +17,17 @@ class RatingService:
         self.referral_repo = ReferralRepository(session)
         self.user_repo = UserRepository(session)
 
-    async def get_top(self, contest_id: int, limit: int = 20) -> list[dict]:
+    async def get_top(self, contest_id: int, limit: int = 20, for_admin: bool = False) -> list[dict]:
         leaderboard = await self.referral_repo.leaderboard(contest_id, limit)
         result = []
         for rank, (referrer_id, count) in enumerate(leaderboard, start=1):
             user = await self.user_repo.get(referrer_id)
-            name = self._display_name(user, referrer_id)
+            name = self._display_name(user, referrer_id, for_admin=for_admin)
             result.append({"rank": rank, "user_id": referrer_id, "name": name, "count": count})
         return result
 
-    async def get_top_50(self, contest_id: int) -> list[dict]:
-        return await self.get_top(contest_id, limit=50)
+    async def get_top_50(self, contest_id: int, for_admin: bool = False) -> list[dict]:
+        return await self.get_top(contest_id, limit=50, for_admin=for_admin)
 
     async def get_user_rank(self, contest_id: int, user_id: int) -> tuple[int | None, int]:
         """(o'rin, ball) qaytaradi. Agar referral yo'q bo'lsa o'rin=None, ball=0."""
@@ -56,9 +56,36 @@ class RatingService:
         return "\n".join(lines)
 
     @staticmethod
-    def _display_name(user, fallback_id: int) -> str:
+    def format_contest_ended_message(contest, top_list: list[dict]) -> str:
+        """Konkurs yakunlanganda ishtirokchilarga yuboriladigan xabar matni."""
+        lines = [
+            "🏁 <b>Konkurs yakunlandi!</b>\n",
+            f"📌 <b>{escape(contest.title)}</b>",
+            "",
+            "🏆 <b>TOP 20 g'oliblar:</b>",
+        ]
+        if not top_list:
+            lines.append("Hozircha hech kim ball to'plamagan.")
+        for entry in top_list:
+            prefix = MEDALS.get(entry["rank"], f"{entry['rank']}.")
+            lines.append(f"{prefix} {entry['name']} — {entry['count']}")
+        lines.append("")
+        lines.append("Ishtirokingiz uchun rahmat! 🎉 Yangi konkurslarni kuzatib boring.")
+        return "\n".join(lines)
+
+    @staticmethod
+    def _display_name(user, fallback_id: int, for_admin: bool = False) -> str:
+        """Oddiy foydalanuvchilarga faqat Telegram ismi (username'siz) ko'rsatiladi,
+        adminlarga esa username (mavjud bo'lsa) yoki aks holda Telegram ID ko'rsatiladi."""
+        if for_admin:
+            if not user:
+                return f"ID{fallback_id}"
+            if user.username:
+                return escape(f"@{user.username}")
+            return f"ID{fallback_id}"
+
         if not user:
             return f"ID{fallback_id}"
-        if user.username:
-            return escape(f"@{user.username}")
-        return escape(user.full_name) if user.full_name else f"ID{fallback_id}"
+        if user.full_name:
+            return escape(user.full_name)
+        return f"ID{fallback_id}"
