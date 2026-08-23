@@ -95,3 +95,15 @@ class ReferralRepository:
         )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def participant_ids(self, contest_id: int) -> list[int]:
+        """Konkursda ishtirok etgan barcha foydalanuvchilar (referrer + taklif qilinganlar),
+        konkurs tugaganda xabarnoma yuborish uchun ishlatiladi."""
+        referrer_stmt = select(Referral.referrer_id).where(Referral.contest_id == contest_id)
+        invited_stmt = select(Referral.invited_id).where(Referral.contest_id == contest_id)
+
+        referrer_result = await self.session.execute(referrer_stmt)
+        invited_result = await self.session.execute(invited_stmt)
+
+        ids = {row[0] for row in referrer_result.all()} | {row[0] for row in invited_result.all()}
+        return list(ids)
